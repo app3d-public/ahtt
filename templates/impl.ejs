@@ -1,0 +1,64 @@
+#include "<%= namespace %>.hpp"
+<%_ if (extendPath) { _%>
+#include "<%- extendPath %>.hpp"
+<%_ } _%>
+<%
+  const HAS_CTX = (!extendPath && blocks.length > 0);
+  const PARAMS = [];
+  if (HAS_CTX) PARAMS.push('const BlockContext& ctx');
+  if (variables.length > 0) PARAMS.push('const Data& data');
+
+  function emitEntries(entries) { %><%_
+    (entries || []).forEach(function(entry){ _%>
+<%_     if (entry.type === "text") { _%>
+            output << "<%- entry.value.replace(/"/g, '\\"') %>";
+<%_     } else if (entry.type === "locale") { _%>
+            output << <%- entry.value %>;
+<%_     } else if (entry.type === "variable") { _%>
+            output << data.<%- entry.value %>;
+<%_     } else if (entry.type === "block") { _%>
+<%_       if (HAS_CTX) { _%>
+            if(ctx.<%- entry.value %>)
+                ctx.<%- entry.value %>(output<% if (variables.length > 0) { %>, data<% } %>);
+            <%_       if (entry.content && entry.content.length) { _%>
+            else
+    <%=emitEntries(entry.content); _%>
+                <%_       } _%>
+<%_       } else { _%>
+            /* block '<%- entry.value %>' encountered but BlockContext is not available */
+<%_       } _%>
+<%_     } _%>
+<%_   }); _%><%_
+  } _%>
+#include <acul/locales/locales.hpp>
+
+namespace templates
+{
+    namespace <%= namespace %>
+    {
+    <%_ if (extendPath) { _%>
+    <%_   blocks.forEach(function(block){ _%>
+        void render_<%- block.value %>(acul::stringstream& output<% if (variables.length > 0) { %>, const Data& data<% } %>)
+        {
+            <%_     emitEntries(block.content); _%>
+        }
+
+    <%_   }); _%>
+        acul::string render(<%- PARAMS.join(', ') %>)
+        {
+            <%- extendPath %>::BlockContext ctx;
+    <%_     blocks.forEach(function(block){ _%>
+            ctx.<%- block.value %> = render_<%- block.value %>;
+    <%_     }); _%>
+            return <%- extendPath %>::render(ctx<% if (variables.length > 0) { %>, data<% } %>);
+        }
+    <%_ } else { _%>
+        acul::string render(<%- PARAMS.join(', ') %>)
+        {
+            acul::stringstream output;
+    <%_       emitEntries(json); _%>
+            return output.str();
+        }
+    <%_ } _%>
+  } // namespace <%= namespace %>
+} // namespace templates
