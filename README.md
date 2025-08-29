@@ -1,7 +1,7 @@
 # Alwf Pug C++ Compiler
 
-**apcc** is a Pug-to-C++ code generator for [alwf](https://git.homedatasrv.ru/app3d/alwf).
-It reads .Pug templates and emits deterministic C++ files that you include and call from your alwf app.
+**apcc** is a pug-to-C++ code generator for [alwf](https://git.homedatasrv.ru/app3d/alwf).
+It reads .pug templates and emits deterministic C++ files that you include and call from your alwf app.
 
 > [!NOTE]
 > This tool is purpose-built for `alwf`/`acul`. It is not a general-purpose Pug compiler.
@@ -23,9 +23,9 @@ It reads .Pug templates and emits deterministic C++ files that you include and c
 
 ### Dependencies
 Runtime/build deps installed via npm install:
-* Pug
-* Pug-lexer
-* Pug-parser
+* pug
+* pug-lexer
+* pug-parser
 * ejs
 
 ### Build
