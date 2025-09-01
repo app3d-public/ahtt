@@ -1,4 +1,4 @@
-# Alwf Pug C++ Compiler
+# Alwf HTML Template Translator
 
 **apcc** is a pug-to-C++ code generator for [alwf](https://git.homedatasrv.ru/app3d/alwf).
 It reads .pug templates and emits deterministic C++ files that you include and call from your alwf app.

@@ -1,0 +1,4 @@
+external
+    - #include <array>
+    - std::array<const char*, 2> pages = { "/index", "/about" };
+    - int page_id = 0;
