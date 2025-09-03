@@ -24,7 +24,6 @@ namespace ahtt
             while (*q) ++q;
             size_t content_len = static_cast<size_t>(q - p);
             bool blank = (content_len == 0);
-
             if (blank)
                 out.push_back({Tok::blank, {}, {line_no, 1}, (int)stack.size() - 1});
             else
@@ -74,7 +73,6 @@ namespace ahtt
             }
             else
             {
-                // пустая строка
                 tn->text = acul::string();
                 tn->pos = cur().pos;
             }
@@ -84,7 +82,39 @@ namespace ahtt
         return group;
     }
 
-    NodeUP Parser::parse_line(INode *parent, size_t parent_next_index)
+    void Parser::parse_children(ParentNode *node, bool is_anonymous_allowed)
+    {
+        next();
+        while (at(Tok::line) || at(Tok::blank))
+        {
+            if (at(Tok::line))
+                node->children.push_back(parse_line(node, node->children.size(), is_anonymous_allowed));
+            else
+                next();
+        }
+        if (!at(Tok::dedent)) throw acul::runtime_error("expected DEDENT after block");
+        next();
+    }
+
+    void parse_mixin(MixinDecl *m, const acul::string_view &name, const Pos &pos)
+    {
+        auto start = name.find('(');
+        if (start == std::string::npos)
+            throw acul::runtime_error(
+                acul::format("Expected '(' after mixin declaration. Line %d, pos %d", pos.line, pos.col));
+        auto end = name.rfind(')');
+        if (end == std::string::npos)
+            throw acul::runtime_error(
+                acul::format("Expected ')' after mixin declaration. Line %d, pos %d", pos.line, pos.col));
+
+        acul::string args_raw{name.data() + start + 1, end - start - 1};
+
+        m->name = acul::trim(acul::string(name.data(), start));
+        m->args = acul::split(args_raw, ',');
+        m->pos = pos;
+    }
+
+    NodeUP Parser::parse_line(INode *parent, size_t parent_next_index, bool is_anonymous_allowed)
     {
         const Tok &t = cur();
         acul::string s = acul::trim_start(t.sv);
@@ -100,128 +130,78 @@ namespace ahtt
             return p;
         }
 
-        if (acul::starts_with(s, "block "))
+        if (acul::starts_with(s, "block"))
         {
             BlockNode::Mode mode = BlockNode::replace;
-            acul::string rest = trim(s.substr(6));
-            acul::string name;
-            if (acul::starts_with(rest, "append "))
+            bool is_anonymous = s.size() == 5;
+            acul::string rest;
+            if (!is_anonymous)
             {
-                mode = BlockNode::append;
-                name = trim(rest.substr(7));
+                rest = trim(s.substr(6));
+                is_anonymous = rest.empty();
             }
-            else if (acul::starts_with(rest, "prepend "))
+
+            auto b = acul::make_unique<BlockNode>();
+            if (!is_anonymous)
             {
-                mode = BlockNode::prepend;
-                name = trim(rest.substr(8));
+                if (acul::starts_with(rest, "append "))
+                {
+                    mode = BlockNode::append;
+                    b->name = trim(rest.substr(7));
+                }
+                else if (acul::starts_with(rest, "prepend "))
+                {
+                    mode = BlockNode::prepend;
+                    b->name = trim(rest.substr(8));
+                }
+                else
+                    b->name = rest;
+                replace_map.emplace(b->name, b.get(), parent, parent_next_index);
             }
-            else
-                name = rest;
+            else if (!is_anonymous_allowed)
+                throw acul::runtime_error(
+                    acul::format("anonymous block is not allowed at: line %d, pos %d", t.pos.line, t.pos.col));
+            b->mode = mode;
+            b->pos = t.pos;
 
             next();
-            auto b = acul::make_unique<BlockNode>();
-            b->mode = mode;
-            b->name = std::move(name);
-            b->pos = t.pos;
-            replace_map.emplace(b->name, b.get(), parent, parent_next_index);
-
-            if (at(Tok::indent))
-            {
-                next();
-                while (at(Tok::line) || at(Tok::blank))
-                {
-                    if (at(Tok::line))
-                        b->children.push_back(parse_line(b.get(), b->children.size()));
-                    else
-                        next();
-                }
-                if (!at(Tok::dedent)) throw acul::runtime_error("expected DEDENT after block body");
-                next();
-            }
+            if (at(Tok::indent)) parse_children(b.get(), is_anonymous_allowed);
             return b;
         }
 
-        if (acul::starts_with(s, "append ") || acul::starts_with(s, "prepend "))
+        bool is_append_starts = acul::starts_with(s, "append ");
+        if (is_append_starts || acul::starts_with(s, "prepend "))
         {
-            bool is_append = acul::starts_with(s, "append ");
             auto block = acul::make_unique<BlockNode>();
-            block->mode = is_append ? BlockNode::append : BlockNode::prepend;
-            block->name = trim(s.substr(is_append ? 7 : 8));
+            block->mode = is_append_starts ? BlockNode::append : BlockNode::prepend;
+            block->name = trim(s.substr(is_append_starts ? 7 : 8));
             block->pos = t.pos;
             replace_map.emplace(block->name, block.get(), parent, parent_next_index);
-            next();
 
-            if (at(Tok::indent))
-            {
-                next();
-                while (at(Tok::line) || at(Tok::blank))
-                {
-                    if (at(Tok::line))
-                        block->children.push_back(parse_line(block.get(), block->children.size()));
-                    else
-                        next();
-                }
-                if (!at(Tok::dedent)) throw acul::runtime_error("expected DEDENT after append/prepend");
-                next();
-            }
+            next();
+            if (at(Tok::indent)) parse_children(block.get(), is_anonymous_allowed);
             return block;
         }
 
         if (acul::starts_with(s, "mixin "))
         {
             auto m = acul::make_unique<MixinDecl>();
-            size_t p = 6;
-            while (p < s.size() && std::isspace((unsigned char)s[p])) ++p;
-            size_t q = p;
-            if (q >= s.size() || !(std::isalpha((unsigned char)s[q]) || s[q] == '_'))
-                throw acul::runtime_error("mixin name expected");
-            ++q;
-            while (q < s.size() && (std::isalnum((unsigned char)s[q]) || s[q] == '_' || s[q] == '-')) ++q;
-            m->name = acul::string(s.substr(p, q - p));
-            m->pos = t.pos;
-            next();
+            acul::string_view name{s.data() + 6, s.size() - 6};
+            parse_mixin(m.get(), name, t.pos);
 
-            if (at(Tok::indent))
-            {
-                next();
-                while (at(Tok::line) || at(Tok::blank))
-                {
-                    if (at(Tok::line))
-                        m->body.push_back(parse_line(m.get(), m->body.size()));
-                    else
-                        next();
-                }
-                if (!at(Tok::dedent)) throw acul::runtime_error("expected DEDENT after mixin body");
-                next();
-            }
+            next();
+            if (at(Tok::indent)) parse_children(m.get(), true);
             return m;
         }
 
         if (!s.empty() && s[0] == '+')
         {
             auto m = acul::make_unique<MixinCall>();
-            size_t p = 1, q = p;
-            if (q >= s.size() || !(std::isalpha((unsigned char)s[q]) || s[q] == '_'))
-                throw acul::runtime_error("mixin call name expected");
-            ++q;
-            while (q < s.size() && (std::isalnum((unsigned char)s[q]) || s[q] == '_' || s[q] == '-')) ++q;
-            m->name = acul::string(s.substr(p, q - p));
-            m->pos = t.pos;
-            next();
+            acul::string_view name{s.data() + 1, s.size() - 1};
+            parse_mixin(m.get(), name, t.pos);
 
-            if (at(Tok::indent))
-            {
-                next();
-                while (at(Tok::line) || at(Tok::blank))
-                {
-                    if (at(Tok::line))
-                        m->body.push_back(parse_line(m.get(), m->body.size()));
-                    else
-                        next(); // ПРОПУСТИТЬ blank
-                }
-                if (!at(Tok::dedent)) throw acul::runtime_error("expected DEDENT after mixin call body");
-                next();
-            }
+            next();
+            if (at(Tok::indent)) parse_children(m.get(), is_anonymous_allowed);
             return m;
         }
 
@@ -231,21 +211,9 @@ namespace ahtt
             auto c = acul::make_unique<CodeNode>();
             c->code = acul::string(s.substr(2));
             c->pos = t.pos;
-            next();
 
-            if (at(Tok::indent))
-            {
-                next();
-                while (at(Tok::line) || at(Tok::blank))
-                {
-                    if (at(Tok::line))
-                        c->children.push_back(parse_line(c.get(), c->children.size()));
-                    else
-                        next();
-                }
-                if (!at(Tok::dedent)) throw acul::runtime_error("expected DEDENT after code block");
-                next();
-            }
+            next();
+            if (at(Tok::indent)) parse_children(c.get(), is_anonymous_allowed);
             return c;
         }
 
@@ -297,21 +265,11 @@ namespace ahtt
         {
             auto ext = acul::make_unique<ExternalNode>();
             ext->pos = t.pos;
-            next();
+            auto ext_type_def = acul::trim(s.substr(8));
+            ext->is_struct = ext_type_def == "struct";
 
-            if (at(Tok::indent))
-            {
-                next();
-                while (at(Tok::line) || at(Tok::blank))
-                {
-                    if (at(Tok::line))
-                        ext->children.push_back(parse_line(ext.get(), ext->children.size()));
-                    else
-                        next();
-                }
-                if (!at(Tok::dedent)) throw acul::runtime_error("expected DEDENT after external");
-                next();
-            }
+            next();
+            if (at(Tok::indent)) parse_children(ext.get(), is_anonymous_allowed);
             return ext;
         }
 
@@ -324,27 +282,16 @@ namespace ahtt
 
         if (at(Tok::indent))
         {
-            next();
             if (is_dot_at_end)
             {
+                next();
                 auto group = collect_text_nodes();
                 el->children.push_back(std::move(group));
                 if (!at(Tok::dedent)) throw acul::runtime_error("expected DEDENT after text block");
                 next();
             }
-
             else
-            {
-                while (at(Tok::line) || at(Tok::blank))
-                {
-                    if (at(Tok::line))
-                        el->children.push_back(parse_line(el.get(), el->children.size()));
-                    else
-                        next();
-                }
-                if (!at(Tok::dedent)) throw acul::runtime_error("expected DEDENT after element body");
-                next();
-            }
+                parse_children(el.get(), is_anonymous_allowed);
         }
         return el;
     }

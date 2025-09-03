@@ -178,7 +178,7 @@ namespace ahtt
         resolve_blocks(extend_parser, _template);
         _template.ast = std::move(extend_parser.ast);
         _template.replace_map.clear();
-        dump_ast(_template.ast);
+        // dump_ast(_template.ast);
     }
 
 } // namespace ahtt

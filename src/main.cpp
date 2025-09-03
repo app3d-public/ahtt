@@ -3,8 +3,8 @@
 
 int main(int argc, char *argv[])
 {
-    acul::init_simd_module();
-    if (acul::get_simd_flags() == acul::simd_flag_bits::initialized) printf("Failed to load simd module\n");
+    // acul::init_simd_module();
+    // if (acul::get_simd_flags() == acul::simd_flag_bits::initialized) printf("Failed to load simd module\n");
 
     acul::io::path file_path{"test_page.at"};
     acul::io::path views_path{"views"};
@@ -14,6 +14,10 @@ int main(int argc, char *argv[])
     l.link(views_path);
     ahtt::Translator tr(p);
     tr.parse_tokens();
+    acul::stringstream ss;
+    printf("=== C++ Code ===\n");
+    tr.write_to_stream(ss, "test_page");
+    printf("%s\n", ss.str().c_str());
 
     // l.dump();
 

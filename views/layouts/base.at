@@ -1,6 +1,6 @@
 block vars
 doctype html
-html
+html(lang='_("lang")')
   head
     title= site_name
     block head
@@ -21,4 +21,5 @@ html
       | © 2025 App3D
 
 mixin button(const char* text)
-  button.btn(type=button)= text;
+  button.btn(type=button)= text
+    block

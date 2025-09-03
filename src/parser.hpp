@@ -47,6 +47,8 @@ namespace ahtt
             external,
         };
 
+        Pos pos;
+
         virtual ~INode() = default;
         virtual Kind kind() const = 0;
         virtual acul::unique_ptr<INode> clone() const = 0;
@@ -58,7 +60,6 @@ namespace ahtt
     struct ParentNode : INode
     {
         NodeList children;
-        Pos pos;
     };
 
     struct HTMLNode : ParentNode
@@ -123,18 +124,18 @@ namespace ahtt
             at,
             plain
         } mode;
-        Pos pos{};
 
         virtual Kind kind() const override { return Kind::include; }
 
         virtual acul::unique_ptr<INode> clone() const override { return acul::make_unique<IncludeNode>(*this); }
     };
 
-    struct MixinDecl : INode
+    struct MixinDecl : ParentNode
     {
         acul::string name;
-        NodeList body;
-        Pos pos{};
+        acul::vector<acul::string> args;
+        bool has_block = false;
+
         Kind kind() const override { return Kind::mixin_decl; }
 
         acul::unique_ptr<INode> clone() const override
@@ -142,34 +143,19 @@ namespace ahtt
             auto p = acul::make_unique<MixinDecl>();
             p->name = name;
             p->pos = pos;
-            for (auto &ch : body) p->body.push_back(ch->clone());
+            for (auto &ch : children) p->children.push_back(ch->clone());
             return p;
         }
     };
 
-    struct MixinCall : INode
+    struct MixinCall : MixinDecl
     {
-        acul::string name;
-        acul::vector<acul::string> args;
-        NodeList body;
-        Pos pos{};
-        Kind kind() const override { return Kind::mixin_call; }
-
-        acul::unique_ptr<INode> clone() const override
-        {
-            auto p = acul::make_unique<MixinCall>();
-            p->name = name;
-            p->args = args;
-            p->pos = pos;
-            for (auto &ch : body) p->body.push_back(ch->clone());
-            return p;
-        }
+        virtual Kind kind() const override { return Kind::mixin_call; }
     };
 
     struct TextNode : INode
     {
         acul::string text;
-        Pos pos{};
         Kind kind() const override { return Kind::text; }
         acul::unique_ptr<INode> clone() const override { return acul::make_unique<TextNode>(*this); }
     };
@@ -177,7 +163,6 @@ namespace ahtt
     struct TextGroupNode : INode
     {
         acul::vector<acul::unique_ptr<TextNode>> text_nodes;
-        Pos pos{};
         Kind kind() const override { return Kind::text_group; }
 
         acul::unique_ptr<INode> clone() const override
@@ -192,7 +177,6 @@ namespace ahtt
     struct ExprNode : INode
     {
         acul::string expr;
-        Pos pos{};
         Kind kind() const override { return Kind::expr; }
         acul::unique_ptr<INode> clone() const override { return acul::make_unique<ExprNode>(*this); }
     };
@@ -200,13 +184,14 @@ namespace ahtt
     struct ExtendsNode : INode
     {
         acul::string path;
-        Pos pos{};
         Kind kind() const override { return Kind::extends; }
         acul::unique_ptr<INode> clone() const override { return acul::make_unique<ExtendsNode>(*this); }
     };
 
     struct ExternalNode : ParentNode
     {
+        bool is_struct;
+
         virtual Kind kind() const override { return Kind::external; }
 
         virtual acul::unique_ptr<INode> clone() const override
@@ -242,7 +227,9 @@ namespace ahtt
         const Tok &next() { return ts[_pos++]; }
 
         acul::unique_ptr<TextGroupNode> collect_text_nodes();
-        NodeUP parse_line(INode *parent, size_t parent_next_index);
+        NodeUP parse_line(INode *parent, size_t parent_next_index, bool is_anonymous_allowed = false);
+
+        void parse_children(ParentNode *node, bool is_anonymous_allowed);
     };
 
     acul::vector<Tok> lex_with_indents(const acul::string_pool<char> &pool);
@@ -270,7 +257,7 @@ namespace ahtt
             {
                 auto *x = static_cast<const TextNode *>(n);
                 indent(depth);
-                std::printf("Text: \"%s\"\n", x->text.c_str());
+                std::printf("Text: %s\n", x->text.c_str());
                 break;
             }
             case K::text_group:
@@ -285,7 +272,7 @@ namespace ahtt
             {
                 auto *x = static_cast<const ExprNode *>(n);
                 indent(depth);
-                std::printf("Expr: = %s\n", x->expr.c_str());
+                std::printf("Expr: %s\n", x->expr.c_str());
                 break;
             }
             case K::code:
@@ -335,8 +322,14 @@ namespace ahtt
             {
                 auto *m = static_cast<const MixinDecl *>(n);
                 indent(depth);
-                std::printf("MixinDecl: %s\n", m->name.c_str());
-                dump_children(m->body.data(), m->body.size(), depth + 1);
+                printf("MixinDecl: %s(", m->name.c_str());
+                for (int i = 0; i < m->args.size(); i++)
+                {
+                    printf("%s", m->args[i].c_str());
+                    if (i + 1 < m->args.size()) printf(", ");
+                }
+                printf(")\n");
+                dump_children(m->children.data(), m->children.size(), depth + 1);
                 break;
             }
             case K::mixin_call:
@@ -344,14 +337,17 @@ namespace ahtt
                 auto *m = static_cast<const MixinCall *>(n);
                 indent(depth);
                 std::printf("MixinCall: +%s\n", m->name.c_str());
-                dump_children(m->body.data(), m->body.size(), depth + 1);
+                dump_children(m->children.data(), m->children.size(), depth + 1);
                 break;
             }
             case K::external:
             {
                 auto *x = static_cast<const ExternalNode *>(n);
                 indent(depth);
-                std::printf("External\n");
+                if (x->is_struct)
+                    printf("External(struct)\n");
+                else
+                    std::printf("External\n");
                 dump_children(x->children.data(), x->children.size(), depth + 1);
                 break;
             }
