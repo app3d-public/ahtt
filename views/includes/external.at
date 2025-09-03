@@ -1,5 +1,0 @@
-external
-    - #include <array>
-    - // array
-    - std::array<const char*, 2> pages; // comment
-    - int page_id;

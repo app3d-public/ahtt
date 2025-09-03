@@ -7,6 +7,7 @@ namespace ahtt
     void append_plain_text(const ReplaceSlot &slot, const acul::io::path &path, Parser &p, const IncludeNode *node,
                            size_t offset)
     {
+        LOG_INFO("Loading file: %s", path.str().c_str());
         acul::vector<char> file_buffer;
         if (acul::io::file::read_binary(path.str(), file_buffer) != acul::io::file::op_state::success)
             throw acul::runtime_error(acul::format("Failed to read file: %s", path.str().c_str()));
@@ -178,7 +179,6 @@ namespace ahtt
         resolve_blocks(extend_parser, _template);
         _template.ast = std::move(extend_parser.ast);
         _template.replace_map.clear();
-        // dump_ast(_template.ast);
     }
 
 } // namespace ahtt

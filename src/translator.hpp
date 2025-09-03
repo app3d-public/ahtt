@@ -18,7 +18,6 @@ namespace ahtt
         {
             NodeList ast;
             parse_tokens(_p.ast, ast);
-            dump_ast(ast);
             _ast = std::move(ast);
         }
 

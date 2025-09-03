@@ -1,38 +1,50 @@
 # Alwf HTML Template Transpiler
 
-**apcc** is a pug-to-C++ code generator for [alwf](https://git.homedatasrv.ru/app3d/alwf).
-It reads .pug templates and emits deterministic C++ files that you include and call from your alwf app.
+**ahtt** is a transpiler that converts `.at` template files into C++ source code.
+`.at` is a template format with a Pug-like syntax for describing HTML views.
+The transpiler produces deterministic C++ functions that can be included and called directly from an application, removing the need for runtime template processing.
 
-> [!NOTE]
-> This tool is purpose-built for `alwf`/`acul`. It is not a general-purpose Pug compiler.
+Specification of the `.at` template format is available in the [project wiki](https://git.homedatasrv.ru/app3d/ahtt/wiki).
 
-## Pug Support Status
+## Template Features
 
-* **Base HTML tags:** tags & nesting, static attributes, and text nodes.
-* **Variables:**
-    * Text/attribute values: simple placeholders parsed by the compiler.
-    * Pug Code nodes: buffered output only.
-* **Layout composition:** `extends` and `block`.
-* **i18n:** emitted text segments can be translated via gettext integration in `acul`.
+* **Base HTML tags:** nesting, static attributes, text nodes
+* **Variables:** placeholders expanded by the compiler in text and attributes
+* **Code nodes:** buffered output only
+* **Layout composition:** `extends`, `block`
+* **i18n:** emitted text segments integrate with `acul` gettext support
 
 ## Building
 
 ### Requirements
-* Node.js ≥ 18 (LTS recommended)
+
 * C++20 compiler
 
-### Dependencies
-Runtime/build deps installed via npm install:
-* pug
-* pug-lexer
-* pug-parser
-* ejs
+### Supported compilers:
+- GNU GCC
+- Clang
 
-### Build
+### Supported OS:
+- Linux
+- Microsoft Windows
+
+### Bundled submodules
+* [acul](https://git.homedatasrv.ru/app3d/acul)
+* [args](https://github.com/Taywee/args)
+
+## Usage
+
 ```sh
-npm install
-npm start -- input.pug output_dir
+ahtt -i input.at -o output_dir [--base-dir path]
 ```
+
+### Options
+
+* `-i, --input` - input `.at` template
+* `-o, --output` - output directory for generated `.cpp/.hpp` files
+* `--base-dir` - base directory for resolving includes/extends
+* `--help` - show usage information
+* `--version` - show version information
 
 ## License
 This project is licensed under the [MIT License](LICENSE).
