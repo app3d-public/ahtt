@@ -39,10 +39,12 @@ ahtt -i input.at -o output_dir [--base-dir path]
 ```
 
 ### Options
-
+### Required
 * `-i, --input` - input `.at` template
-* `-o, --output` - output directory for generated `.cpp/.hpp` files
-* `--base-dir` - base directory for resolving includes/extends
+* `-o, --output` - output .hpp file
+### Optional
+* `--base-dir` - base directory for resolving templates
+* `--dep-file` - output dependency file (Cmake)
 * `--help` - show usage information
 * `--version` - show version information
 

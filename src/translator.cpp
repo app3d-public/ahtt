@@ -467,7 +467,7 @@ namespace ahtt
         };
         auto append_expr_seg = [&](acul::string_view expr) {
             start_chain();
-            if (!first_in_chain) ss << " << " << expr;
+            if (!first_in_chain) ss << " << (" << expr << ")";
             first_in_chain = false;
         };
         auto flush_pending_text = [&] {
@@ -605,6 +605,14 @@ namespace ahtt
             }
         }
         ss << ")\n" INDENT8 "{\n" INDENT12 "acul::stringstream ss;\n";
+        size_t cap = 0;
+        for (const auto &node : _ast)
+        {
+            if (node->kind() != INode::Kind::text) continue;
+            auto *tn = static_cast<const TextNode *>(node.get());
+            cap += tn->text.size();
+        }
+        ss << INDENT12 "ss.reserve(" << cap << ");\n";
         write_node_list(ss, _ast, "ss", INDENT12);
 
         ss << INDENT12 "return ss.str();\n";

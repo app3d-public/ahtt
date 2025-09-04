@@ -7,7 +7,7 @@
 
 namespace ahtt
 {
-    inline void load_template(const acul::io::path &path, Parser &p)
+    inline void load_template(const acul::io::path &path, Parser &p, IOInfo &io)
     {
         LOG_INFO("Loading template file: %s", path.str().c_str());
         acul::vector<char> file_buffer;
@@ -16,6 +16,7 @@ namespace ahtt
 
         acul::string_pool<char> pool(file_buffer.size());
         acul::io::file::fill_line_buffer(file_buffer.data(), file_buffer.size(), pool);
+        io.emplace_back(path, file_buffer.size());
 
         p.ts = ahtt::lex_with_indents(pool);
         p.parse();
@@ -26,7 +27,7 @@ namespace ahtt
     public:
         Linker(Parser &p) : _template(p) {}
 
-        void link(const acul::io::path &base_path);
+        void link(const acul::io::path &base_path, IOInfo& io);
 
     private:
         Parser &_template;

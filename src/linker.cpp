@@ -2,18 +2,20 @@
 
 namespace ahtt
 {
-    void resolve_includes(Parser &p, const acul::io::path &base_path);
+    void resolve_includes(Parser &p, const acul::io::path &base_path, IOInfo &io);
 
-    void append_plain_text(const ReplaceSlot &slot, const acul::io::path &path, Parser &p, const IncludeNode *node,
-                           size_t offset)
+    void append_plain_text(const ReplaceSlot &slot, const acul::io::path &path, Parser &p, Pos pos, size_t offset,
+                           IOInfo &io)
     {
         LOG_INFO("Loading file: %s", path.str().c_str());
         acul::vector<char> file_buffer;
         if (acul::io::file::read_binary(path.str(), file_buffer) != acul::io::file::op_state::success)
             throw acul::runtime_error(acul::format("Failed to read file: %s", path.str().c_str()));
+        io.emplace_back(path, file_buffer.size());
+
         auto text_node = acul::make_unique<TextNode>();
         text_node->text = acul::string(file_buffer.data(), file_buffer.size());
-        text_node->pos = node->pos;
+        text_node->pos = pos;
         if (!slot.parent)
             p.ast[slot.offset + offset] = std::move(text_node);
         else
@@ -25,11 +27,11 @@ namespace ahtt
     }
 
     inline void append_template(const ReplaceSlot &slot, Parser &p, const acul::io::path &base_path,
-                                const acul::io::path &path, const IncludeNode * /*node*/, ptrdiff_t &delta)
+                                const acul::io::path &path, ptrdiff_t &delta, IOInfo &io)
     {
         Parser inc;
-        load_template(path, inc);
-        resolve_includes(inc, base_path);
+        load_template(path, inc, io);
+        resolve_includes(inc, base_path, io);
 
         const size_t N = inc.ast.size();
 
@@ -52,7 +54,7 @@ namespace ahtt
         delta += static_cast<ptrdiff_t>(N) - 1;
     }
 
-    void resolve_includes(Parser &p, const acul::io::path &base_path)
+    void resolve_includes(Parser &p, const acul::io::path &base_path, IOInfo &io)
     {
         acul::vector<acul::pair<acul::string, ReplaceSlot>> to_replace{p.replace_map.begin(), p.replace_map.end()};
         std::sort(to_replace.begin(), to_replace.end(), [](const auto &a, const auto &b) {
@@ -73,9 +75,9 @@ namespace ahtt
                 auto *node = static_cast<IncludeNode *>(slot.node);
                 auto path = base_path / node->path;
                 if (node->mode == IncludeNode::Mode::plain)
-                    append_plain_text(slot, path, p, node, added_offset);
+                    append_plain_text(slot, path, p, node->pos, added_offset, io);
                 else
-                    append_template(slot, p, base_path, path, node, added_offset);
+                    append_template(slot, p, base_path, path, added_offset, io);
             }
             else
                 p.replace_map[name].offset += added_offset;
@@ -168,14 +170,14 @@ namespace ahtt
         }
     }
 
-    void Linker::link(const acul::io::path &base_path)
+    void Linker::link(const acul::io::path &base_path, IOInfo &io)
     {
-        resolve_includes(_template, base_path);
+        resolve_includes(_template, base_path, io);
         if (!_template.extends) return;
         auto extend_path = base_path / _template.extends->path;
         Parser extend_parser;
-        load_template(extend_path, extend_parser);
-        resolve_includes(extend_parser, base_path);
+        load_template(extend_path, extend_parser, io);
+        resolve_includes(extend_parser, base_path, io);
         resolve_blocks(extend_parser, _template);
         _template.ast = std::move(extend_parser.ast);
         _template.replace_map.clear();

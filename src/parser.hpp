@@ -1,6 +1,7 @@
 #pragma once
 
 #include <acul/hash/hashmap.hpp>
+#include <acul/io/path.hpp>
 #include <acul/memory/smart_ptr.hpp>
 #include <acul/string/string_pool.hpp>
 #include <acul/string/utils.hpp>
@@ -233,4 +234,12 @@ namespace ahtt
     };
 
     acul::vector<Tok> lex_with_indents(const acul::string_pool<char> &pool);
+
+    struct FileInfo
+    {
+        acul::io::path path;
+        size_t file_size;
+    };
+
+    using IOInfo = acul::vector<FileInfo>;
 } // namespace ahtt

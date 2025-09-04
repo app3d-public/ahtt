@@ -12,8 +12,9 @@
 struct Args
 {
     acul::io::path input;
-    acul::string output;
     acul::io::path base_dir;
+    acul::string output;
+    acul::string dep_file;
 };
 
 void print_version() { std::cout << "ahtt version " << AHTT_VERSION_STRING << "\n"; }
@@ -25,9 +26,9 @@ int parse_args(int argc, char **argv, Args &args)
     args::Flag version(parser, "version", "Show version", {'v', "version"}, args::Options::KickOut);
 
     args::ValueFlag<std::string> input(parser, "file", "Input .at template", {'i', "input"}, args::Options::Required);
-    args::ValueFlag<std::string> output(parser, "dir", "Output directory for generated .cpp/.hpp", {'o', "output"},
-                                        args::Options::Required);
+    args::ValueFlag<std::string> output(parser, "dir", "Output .hpp file", {'o', "output"}, args::Options::Required);
     args::ValueFlag<std::string> base_dir(parser, "dir", "Base directory", {"base-dir"});
+    args::ValueFlag<std::string> dep_file(parser, "file", "Dependency file", {"dep-file"});
 
     try
     {
@@ -68,6 +69,7 @@ int parse_args(int argc, char **argv, Args &args)
     args.input = acul::string(args::get(input).c_str());
     args.output = acul::string(args::get(output).c_str());
     if (base_dir) args.base_dir = acul::string(args::get(base_dir).c_str());
+    if (dep_file) args.dep_file = acul::string(args::get(dep_file).c_str());
     return AHTT_ARGS_SUCCESS;
 }
 
@@ -103,9 +105,10 @@ int main(int argc, char *argv[])
     try
     {
         ahtt::Parser p;
-        ahtt::load_template(args.base_dir / args.input, p);
+        ahtt::IOInfo io;
+        ahtt::load_template(args.input, p, io);
         ahtt::Linker l(p);
-        l.link(args.base_dir);
+        l.link(args.base_dir, io);
         ahtt::Translator tr(p);
         tr.parse_tokens();
         acul::stringstream ss;
@@ -115,6 +118,21 @@ int main(int argc, char *argv[])
         auto file_content = ss.str();
         if (!acul::io::file::write_binary(args.output, file_content.data(), file_content.size()))
             throw acul::runtime_error(acul::format("Failed to write file: %s", args.output.c_str()));
+
+        if (!args.dep_file.empty())
+        {
+            LOG_INFO("Writing dependency file: %s", args.dep_file.c_str());
+            acul::stringstream ss_dep;
+            ss_dep << args.output << ": \\\n";
+            for (size_t i = 0; i < io.size(); ++i)
+            {
+                ss_dep << "    " << io[i].path.str();
+                if (i != io.size() - 1) ss_dep << " \\\n";
+            }
+            auto dep_content = ss_dep.str();
+            if (!acul::io::file::write_binary(args.dep_file, dep_content.data(), dep_content.size()))
+                throw acul::runtime_error(acul::format("Failed to write file: %s", args.dep_file.c_str()));
+        }
     }
     catch (const std::exception &e)
     {
