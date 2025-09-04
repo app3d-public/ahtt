@@ -229,6 +229,7 @@ namespace ahtt
 
         acul::unique_ptr<TextGroupNode> collect_text_nodes();
         NodeUP parse_line(INode *parent, size_t parent_next_index, bool is_anonymous_allowed = false);
+        NodeUP parse_html_node(const acul::string &s, const Tok &t, bool is_anonymous_allowed);
 
         void parse_children(ParentNode *node, bool is_anonymous_allowed);
     };

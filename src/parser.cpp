@@ -92,7 +92,9 @@ namespace ahtt
             else
                 next();
         }
-        if (!at(Tok::dedent)) throw acul::runtime_error("expected DEDENT after block");
+        if (!at(Tok::dedent))
+            throw acul::runtime_error(
+                acul::format("expected DEDENT after block at line: %d, col: %d", cur().pos.line, cur().pos.col));
         next();
     }
 
@@ -112,6 +114,109 @@ namespace ahtt
         m->name = acul::trim(acul::string(name.data(), start));
         m->args = acul::split(args_raw, ',');
         m->pos = pos;
+    }
+
+    static int paren_balance(acul::string_view s)
+    {
+        bool in_s = false, in_d = false, esc = false;
+        int bal = 0;
+        for (char c : s)
+        {
+            if (esc)
+            {
+                esc = false;
+                continue;
+            }
+            if (c == '\\')
+            {
+                esc = true;
+                continue;
+            }
+            if (!in_d && c == '\'')
+                in_s = !in_s;
+            else if (!in_s && c == '"')
+                in_d = !in_d;
+            else if (!in_s && !in_d)
+            {
+                if (c == '(')
+                    ++bal;
+                else if (c == ')')
+                    --bal;
+            }
+        }
+        return bal;
+    }
+
+    NodeUP Parser::parse_html_node(const acul::string &s, const Tok &t, bool is_anonymous_allowed)
+    {
+        auto el = acul::make_unique<HTMLNode>();
+        acul::string trimmed = acul::trim_end(s);
+        bool is_dot_at_end = !trimmed.empty() && trimmed.back() == '.';
+        el->head = s.substr(0, is_dot_at_end ? s.size() - 1 : s.size());
+        el->pos = t.pos;
+        next();
+
+        size_t sp = el->head.find(' ');
+        acul::string_view html_head{el->head.c_str(), sp != acul::string::npos ? sp : el->head.size()};
+        bool is_ob_found = html_head.find('(') != acul::string::npos;
+        if (is_ob_found)
+        {
+            int bal = paren_balance(el->head);
+            if (bal > 0)
+            {
+                int borrowed_indents = 0;
+
+                while (bal > 0)
+                {
+                    if (at(Tok::indent))
+                    {
+                        ++borrowed_indents;
+                        next();
+                        continue;
+                    }
+
+                    if (at(Tok::blank))
+                    {
+                        next();
+                        continue;
+                    }
+
+                    if (!at(Tok::line)) break;
+
+                    const Tok &lt2 = cur();
+                    el->head += ' ';
+                    el->head += acul::trim_start(lt2.sv);
+                    bal += paren_balance(acul::string_view(lt2.sv));
+                    next();
+                }
+
+                while (borrowed_indents > 0 && at(Tok::dedent))
+                {
+                    --borrowed_indents;
+                    next();
+                }
+                if (bal > 0)
+                    throw acul::runtime_error(acul::format(
+                        "Expected ')' to close tag attributes started at line %d, col %d", t.pos.line, t.pos.col));
+            }
+        }
+
+        if (at(Tok::indent))
+        {
+            if (is_dot_at_end)
+            {
+                next();
+                auto group = collect_text_nodes();
+                el->children.push_back(std::move(group));
+                if (!at(Tok::dedent))
+                    throw acul::runtime_error(acul::format("expected DEDENT after text block at line: %d, col: %d",
+                                                           cur().pos.line, cur().pos.col));
+                next();
+            }
+            else
+                parse_children(el.get(), is_anonymous_allowed);
+        }
+        return el;
     }
 
     NodeUP Parser::parse_line(INode *parent, size_t parent_next_index, bool is_anonymous_allowed)
@@ -273,27 +378,7 @@ namespace ahtt
             return ext;
         }
 
-        auto el = acul::make_unique<HTMLNode>();
-        acul::string trimmed = acul::trim_end(s);
-        bool is_dot_at_end = !trimmed.empty() && trimmed.back() == '.';
-        el->head = s.substr(0, is_dot_at_end ? s.size() - 1 : s.size());
-        el->pos = t.pos;
-        next();
-
-        if (at(Tok::indent))
-        {
-            if (is_dot_at_end)
-            {
-                next();
-                auto group = collect_text_nodes();
-                el->children.push_back(std::move(group));
-                if (!at(Tok::dedent)) throw acul::runtime_error("expected DEDENT after text block");
-                next();
-            }
-            else
-                parse_children(el.get(), is_anonymous_allowed);
-        }
-        return el;
+        return parse_html_node(s, t, is_anonymous_allowed);
     }
 
     void Parser::parse()
