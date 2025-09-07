@@ -60,25 +60,50 @@ namespace ahtt
     acul::unique_ptr<TextGroupNode> Parser::collect_text_nodes()
     {
         auto group = acul::make_unique<TextGroupNode>();
-        if (at(Tok::line) || at(Tok::blank)) group->pos = cur().pos;
+        if (at(Tok::line) || at(Tok::blank) || at(Tok::indent) || at(Tok::dedent)) group->pos = cur().pos;
 
-        while (at(Tok::line) || at(Tok::blank))
+        int base_level = -1;
+        if (at(Tok::line) || at(Tok::blank))
+            base_level = cur().level;
+        else if (at(Tok::indent) || at(Tok::dedent))
+            base_level = cur().level;
+
+        while (true)
         {
-            auto tn = acul::make_unique<TextNode>();
-            if (at(Tok::line))
+            if (at(Tok::line) || at(Tok::blank))
             {
-                const Tok &lt = cur();
-                tn->text = acul::string(lt.sv);
-                tn->pos = lt.pos;
+                auto tn = acul::make_unique<TextNode>();
+                if (at(Tok::line))
+                {
+                    const Tok &lt = cur();
+                    tn->text = acul::string(lt.sv);
+                    tn->pos = lt.pos;
+                }
+                else
+                {
+                    tn->text = acul::string();
+                    tn->pos = cur().pos;
+                }
+                group->text_nodes.push_back(std::move(tn));
+                next();
+                continue;
             }
-            else
+
+            if (at(Tok::indent))
             {
-                tn->text = acul::string();
-                tn->pos = cur().pos;
+                next();
+                continue;
             }
-            group->text_nodes.push_back(std::move(tn));
-            next();
+
+            if (at(Tok::dedent))
+            {
+                if (cur().level < base_level) break;
+                next();
+                continue;
+            }
+            break;
         }
+
         return group;
     }
 
@@ -347,7 +372,9 @@ namespace ahtt
 
             next();
             auto group = collect_text_nodes();
-            if (!at(Tok::dedent)) throw acul::runtime_error("expected DEDENT after text block");
+            if (!at(Tok::dedent))
+                throw acul::runtime_error(acul::format("expected DEDENT after text block at line: %d col: %d",
+                                                       cur().pos.line, cur().pos.col));
             next();
 
             group->pos = t.pos;
