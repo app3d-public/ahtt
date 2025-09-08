@@ -4,7 +4,7 @@
 `.at` is a template format with a Pug-like syntax for describing HTML views.
 The transpiler produces deterministic C++ functions that can be included and called directly from an application, removing the need for runtime template processing.
 
-Specification of the `.at` template format is available in the [project wiki](https://git.homedatasrv.ru/app3d/ahtt/wiki).
+Specification of the `.at` template format is available in the [project wiki](https://github.com/app3d-public/ahtt/wiki).
 
 ## Template Features
 
@@ -29,7 +29,7 @@ Specification of the `.at` template format is available in the [project wiki](ht
 - Microsoft Windows
 
 ### Bundled submodules
-* [acul](https://git.homedatasrv.ru/app3d/acul)
+* [acul](https://github.com/app3d-public/acul)
 * [args](https://github.com/Taywee/args)
 
 ## Usage

@@ -1,9 +1,9 @@
 [submodule "cmake"]
 	path = cmake
-	url = git@git.dev.lan:app3d/acbt.git
+	url = ../acbt.git
 [submodule "modules/acul"]
 	path = modules/acul
-	url = git@git.dev.lan:app3d/acul.git
+	url = ../acul.git
 [submodule "modules/3rd-party/args"]
 	path = modules/3rd-party/args
-	url = git@github.com:Taywee/args.git
+	url = ../args.git
