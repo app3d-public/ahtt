@@ -3,7 +3,7 @@
 #include <acul/hash/hashmap.hpp>
 #include <acul/io/path.hpp>
 #include <acul/memory/smart_ptr.hpp>
-#include <acul/string/string_pool.hpp>
+#include <acul/string/string_view_pool.hpp>
 #include <acul/string/utils.hpp>
 #include <acul/vector.hpp>
 
@@ -234,7 +234,7 @@ namespace ahtt
         void parse_children(ParentNode *node, bool is_anonymous_allowed);
     };
 
-    acul::vector<Tok> lex_with_indents(const acul::string_pool<char> &pool);
+    acul::vector<Tok> lex_with_indents(const acul::string_view_pool<char> &pool);
 
     struct FileInfo
     {

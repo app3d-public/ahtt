@@ -3,26 +3,25 @@
 
 namespace ahtt
 {
-    acul::vector<Tok> lex_with_indents(const acul::string_pool<char> &pool)
+    acul::vector<Tok> lex_with_indents(const acul::string_view_pool<char> &pool)
     {
         acul::vector<Tok> out;
         out.reserve(pool.size());
         acul::vector<int> stack{0};
         int line_no = 1;
 
-        for (const char *ln : pool)
+        for (const auto ln : pool)
         {
             int sp = 0;
-            const char *p = ln;
-            while (*p == ' ')
+            const char *p = ln.data();
+            const char *end = ln.data() + ln.size();
+            while (p < end && *p == ' ')
             {
                 ++sp;
                 ++p;
             }
 
-            const char *q = p;
-            while (*q) ++q;
-            size_t content_len = static_cast<size_t>(q - p);
+            size_t content_len = static_cast<size_t>(end - p);
             bool blank = (content_len == 0);
             if (blank)
                 out.push_back({Tok::blank, {}, {line_no, 1}, (int)stack.size() - 1});

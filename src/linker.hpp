@@ -14,7 +14,8 @@ namespace ahtt
         if (acul::io::file::read_binary(path.str(), file_buffer) != acul::io::file::op_state::success)
             throw acul::runtime_error(acul::format("Failed to read template file: %s", path.str().c_str()));
 
-        acul::string_pool<char> pool(file_buffer.size());
+        acul::string_view_pool<char> pool;
+        pool.reserve(file_buffer.size() / 15);
         acul::io::file::fill_line_buffer(file_buffer.data(), file_buffer.size(), pool);
         io.emplace_back(path, file_buffer.size());
 
