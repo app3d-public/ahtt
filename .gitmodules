@@ -6,4 +6,4 @@
 	url = ../acul.git
 [submodule "modules/3rd-party/args"]
 	path = modules/3rd-party/args
-	url = ../args.git
+	url = git@github.com:Taywee/args.git
