@@ -1,22 +1,22 @@
 #pragma once
 
-#include <acul/io/file.hpp>
+#include <acul/io/fs/file.hpp>
 #include <acul/io/path.hpp>
 #include <acul/log.hpp>
 #include "parser.hpp"
 
 namespace ahtt
 {
-    inline void load_template(const acul::io::path &path, Parser &p, IOInfo &io)
+    inline void load_template(const acul::path &path, Parser &p, IOInfo &io)
     {
         LOG_INFO("Loading template file: %s", path.str().c_str());
         acul::vector<char> file_buffer;
-        if (acul::io::file::read_binary(path.str(), file_buffer) != acul::io::file::op_state::success)
+        if (!acul::fs::read_binary(path.str(), file_buffer))
             throw acul::runtime_error(acul::format("Failed to read template file: %s", path.str().c_str()));
 
         acul::string_view_pool<char> pool;
         pool.reserve(file_buffer.size() / 15);
-        acul::io::file::fill_line_buffer(file_buffer.data(), file_buffer.size(), pool);
+        acul::fill_line_buffer(file_buffer.data(), file_buffer.size(), pool);
         io.emplace_back(path, file_buffer.size());
 
         p.ts = ahtt::lex_with_indents(pool);
@@ -28,7 +28,7 @@ namespace ahtt
     public:
         Linker(Parser &p) : _template(p) {}
 
-        void link(const acul::io::path &base_path, IOInfo& io);
+        void link(const acul::path &base_path, IOInfo &io);
 
     private:
         Parser &_template;

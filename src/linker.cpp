@@ -2,14 +2,14 @@
 
 namespace ahtt
 {
-    void resolve_includes(Parser &p, const acul::io::path &base_path, IOInfo &io);
+    void resolve_includes(Parser &p, const acul::path &base_path, IOInfo &io);
 
-    void append_plain_text(const ReplaceSlot &slot, const acul::io::path &path, Parser &p, Pos pos, size_t offset,
+    void append_plain_text(const ReplaceSlot &slot, const acul::path &path, Parser &p, Pos pos, size_t offset,
                            IOInfo &io)
     {
         LOG_INFO("Loading file: %s", path.str().c_str());
         acul::vector<char> file_buffer;
-        if (acul::io::file::read_binary(path.str(), file_buffer) != acul::io::file::op_state::success)
+        if (acul::fs::read_binary(path.str(), file_buffer))
             throw acul::runtime_error(acul::format("Failed to read file: %s", path.str().c_str()));
         io.emplace_back(path, file_buffer.size());
 
@@ -26,8 +26,8 @@ namespace ahtt
         }
     }
 
-    inline void append_template(const ReplaceSlot &slot, Parser &p, const acul::io::path &base_path,
-                                const acul::io::path &path, ptrdiff_t &delta, IOInfo &io)
+    inline void append_template(const ReplaceSlot &slot, Parser &p, const acul::path &base_path, const acul::path &path,
+                                ptrdiff_t &delta, IOInfo &io)
     {
         Parser inc;
         load_template(path, inc, io);
@@ -54,7 +54,7 @@ namespace ahtt
         delta += static_cast<ptrdiff_t>(N) - 1;
     }
 
-    void resolve_includes(Parser &p, const acul::io::path &base_path, IOInfo &io)
+    void resolve_includes(Parser &p, const acul::path &base_path, IOInfo &io)
     {
         acul::vector<acul::pair<acul::string, ReplaceSlot>> to_replace{p.replace_map.begin(), p.replace_map.end()};
         std::sort(to_replace.begin(), to_replace.end(), [](const auto &a, const auto &b) {
@@ -170,7 +170,7 @@ namespace ahtt
         }
     }
 
-    void Linker::link(const acul::io::path &base_path, IOInfo &io)
+    void Linker::link(const acul::path &base_path, IOInfo &io)
     {
         resolve_includes(_template, base_path, io);
         if (!_template.extends) return;

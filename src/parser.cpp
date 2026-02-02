@@ -1,5 +1,5 @@
 #include "parser.hpp"
-#include <acul/io/path.hpp>
+#include <acul/io/fs/path.hpp>
 
 namespace ahtt
 {
@@ -385,7 +385,7 @@ namespace ahtt
             auto include_node = acul::make_unique<IncludeNode>();
             include_node->path = s.substr(8);
             include_node->pos = t.pos;
-            auto ext = acul::io::get_extension(include_node->path);
+            auto ext = acul::fs::get_extension(include_node->path);
             include_node->mode = ext == ".at" ? IncludeNode::Mode::at : IncludeNode::Mode::plain;
             replace_map.emplace(include_node->path, include_node.get(), parent, parent_next_index);
             next();

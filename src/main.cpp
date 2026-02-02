@@ -11,8 +11,8 @@
 
 struct Args
 {
-    acul::io::path input;
-    acul::io::path base_dir;
+    acul::path input;
+    acul::path base_dir;
     acul::string output;
     acul::string dep_file;
 };
@@ -93,12 +93,8 @@ int main(int argc, char *argv[])
     sd.register_service(ls);
     ls->level = acul::log::level::trace;
     auto *app_logger = ls->add_logger<acul::log::console_logger>("console");
-    ls->default_logger = app_logger;
     app_logger->set_pattern("[%(level_name)] %(message)\n");
-    ls->default_logger = app_logger;
-
-    acul::init_simd_module();
-    if (acul::get_simd_flags() == acul::simd_flag_bits::initialized) LOG_WARN("Failed to load simd module\n");
+    acul::log::set_default_logger(app_logger);
 
     LOG_INFO("Translating template: %s", args.input.str().c_str());
     int ret = EXIT_SUCCESS;
@@ -116,7 +112,7 @@ int main(int argc, char *argv[])
         LOG_INFO("Writing to %s", args.output.c_str());
 
         auto file_content = ss.str();
-        if (!acul::io::file::write_binary(args.output, file_content.data(), file_content.size()))
+        if (!acul::fs::write_binary(args.output, file_content.data(), file_content.size()))
             throw acul::runtime_error(acul::format("Failed to write file: %s", args.output.c_str()));
 
         if (!args.dep_file.empty())
@@ -130,7 +126,7 @@ int main(int argc, char *argv[])
                 if (i != io.size() - 1) ss_dep << " \\\n";
             }
             auto dep_content = ss_dep.str();
-            if (!acul::io::file::write_binary(args.dep_file, dep_content.data(), dep_content.size()))
+            if (!acul::fs::write_binary(args.dep_file, dep_content.data(), dep_content.size()))
                 throw acul::runtime_error(acul::format("Failed to write file: %s", args.dep_file.c_str()));
         }
     }
