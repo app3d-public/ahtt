@@ -125,11 +125,11 @@ namespace ahtt
     void parse_mixin(MixinDecl *m, const acul::string_view &name, const Pos &pos)
     {
         auto start = name.find('(');
-        if (start == std::string::npos)
+        if (start == acul::string::npos)
             throw acul::runtime_error(
                 acul::format("Expected '(' after mixin declaration. Line %d, pos %d", pos.line, pos.col));
         auto end = name.rfind(')');
-        if (end == std::string::npos)
+        if (end == acul::string::npos)
             throw acul::runtime_error(
                 acul::format("Expected ')' after mixin declaration. Line %d, pos %d", pos.line, pos.col));
 
