@@ -18,14 +18,17 @@ if (NOT TARGET acul)
 endif()
 add_subdirectory(modules/3rd-party/args)
 
-gen_version_file(${CMAKE_CURRENT_BINARY_DIR}/version.h)
+create_version_file()
 
 add_files(${PROJECT_NAME} "${CMAKE_CURRENT_SOURCE_DIR}/src")
 add_executable(${PROJECT_NAME} ${AHTT_SRC})
 target_compile_options(${PROJECT_NAME} PRIVATE -march=native)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE acul args)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+target_include_directories(${PROJECT_NAME} PRIVATE
+    ${CMAKE_CURRENT_BINARY_DIR}
+    ${CMAKE_CURRENT_BINARY_DIR}/include/
+)
 
 set_target_properties(${PROJECT_NAME}
     PROPERTIES
